@@ -3,17 +3,31 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>PyTyper</title>
-<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<title>Python Typing Game</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Fredoka:wght@600;700&display=swap">
-<link rel="stylesheet" href="style.css?v=5">
+<link rel="stylesheet" href="style.css?v=11">
+<script>
+addEventListener('error',function(e){
+  var t=e.target&&(e.target.src||e.target.href);
+  if(t&&t.indexOf('fonts.g')>-1)return;
+  var m=t&&t!==location.href?'Could not load: '+t.split('/').pop():'Error: '+e.message+' ('+String(e.filename||'').split('/').pop()+':'+e.lineno+')';
+  var d=document.createElement('div');
+  d.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:999;background:#b3261e;color:#fff;padding:8px 12px;font:13px monospace';
+  d.textContent=m;(document.body||document.documentElement).appendChild(d);
+},true);
+</script>
 </head>
 <body>
 <header>
   <svg viewBox="0 0 32 32" width="34" height="34" aria-hidden="true"><path fill="#3b8eea" d="M15.9 2C9 2 9.4 5 9.4 5v3.1H16V9H6.7S2 8.5 2 16c0 7.400 4.100 7.100 4.100 7.100h2.400v-3.400s-.1-4.100 4-4.100h6.600s3.800.1 3.800-3.700V5.800S23.500 2 15.900 2zm-3.600 2.100a1.200 1.200 0 1 1 0 2.400 1.200 1.200 0 0 1 0-2.400z"/><path fill="#ffc83d" d="M16.100 30c6.900 0 6.500-3 6.500-3v-3.100H16V23h9.300S30 23.500 30 16c0-7.400-4.100-7.100-4.100-7.100h-2.400v3.400s.1 4.100-4 4.100h-6.600s-3.800-.1-3.800 3.700v6.200S8.500 30 16.100 30zm3.600-2.100a1.200 1.200 0 1 1 0-2.400 1.200 1.200 0 0 1 0 2.400z"/></svg>
   <h1>Python <span>Typing Game</span></h1>
   <div class="tag">Type the Python words before they hit the ground!</div>
-  <button id="setBtn">⚙ Settings</button>
+  <div class="hbtns">
+    <button id="pauseBtn" class="hb">&#9208; <span>Pause</span></button>
+    <button id="restartBtn" class="hb">&#8635; <span>Restart</span></button>
+    <button id="menuBtn" class="hb">&#8962; <span>Menu</span></button>
+    <button id="setBtn">&#9881; <span>Settings</span></button>
+  </div>
 </header>
 <div id="stage">
   <div id="sky"></div>
@@ -22,8 +36,9 @@
       <div class="row"><small>Score</small><b class="s-score" id="score">0</b></div>
       <div class="row"><small id="timeLbl">Time</small><b id="time">0s</b></div>
       <div class="row"><small>Accuracy</small><b class="s-acc" id="acc">100%</b></div>
+      <div class="row hide" id="wpmRow"><small>WPM</small><b id="wpm">0</b></div>
       <div class="row"><small>Best Score (<span id="mode">Easy</span>)</small><b class="s-best" id="best">0</b></div>
-      <div class="row"><small>Lives</small><span id="lives">♥♥♥</span></div>
+      <div class="row" id="livesRow"><small>Lives</small><span id="lives">♥♥♥</span></div>
     </div>
     <div class="panel streak"><small style="color:var(--mute)">Streak</small><b id="streak">0</b><p id="msg">Keep going!</p></div>
   </div>
@@ -35,14 +50,34 @@
       <rect x="1" y="10" width="3" height="2" fill="#2d7fd8"/><rect x="0" y="11" width="2" height="1" fill="#ffc83d"/>
       <rect x="6" y="9" width="1" height="1" fill="#6fb8ff"/><rect x="9" y="9" width="1" height="1" fill="#6fb8ff"/><rect x="12" y="6" width="1" height="1" fill="#6fb8ff"/>
     </svg>
+    <div id="editor" class="hide">
+      <div id="edHead"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><span>main.py</span><em>Programs: <b id="edCount">0</b></em></div>
+      <div id="edBody" class="mono" aria-live="off"></div>
+    </div>
   </div>
   <div id="grass"></div>
-  <div id="dirt"><input id="inp" class="mono" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Type the word here..." aria-label="Type the word"></div>
+  <div id="dirt"><input id="inp" class="mono" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Type the word here..." aria-label="Type the word"><div id="codeHint" class="hide">Type directly over the code above. A line moves on when it is correct. Press Enter to skip a finished line that has mistakes.</div></div>
+  <div id="pz" class="hide">
+    <div class="card">
+      <h2>Paused</h2>
+      <p>Words and the timer are frozen. Take a breather.</p>
+      <button id="pzResume">&#9654; Resume</button>
+      <div class="pzrow"><button id="pzRestart" class="bo2">&#8635; Restart</button><button id="pzMenu" class="bo2">&#8962; Main menu</button></div>
+    </div>
+  </div>
   <div id="ov" class="hide">
     <div class="card">
-      <h2 id="ovT">Python Typing Game</h2>
-      <p id="ovP">Type each word and press Enter before it touches the ground. You have 3 lives, and the words get faster as time passes.</p>
-      <p><b>Easy:</b> basic keywords. <b>Medium:</b> common libraries and OOP names. <b>Hard:</b> advanced concepts and dunder methods.</p>
+      <h2 id="ovT">Choose Mode &amp; Difficulty</h2>
+      <p id="ovP">Pick a mode, then a difficulty to start.</p>
+      <div id="gm" class="mrow">
+        <button class="mb" data-g="classic"><b>Classic</b><small>Endless play. 3 lives, speed keeps rising.</small></button>
+        <button class="mb" data-g="time"><b>Time Attack</b><small>Score as much as you can before time runs out.</small></button>
+        <button class="mb" data-g="code"><b>Code Mode</b><small>Type directly over real Python code against the clock.</small></button>
+      </div>
+      <label id="timeRow" class="hide">Time limit
+        <select id="fTime"><option value="30">30 seconds</option><option value="60">1 minute</option><option value="90">1.5 minutes</option><option value="120">2 minutes</option><option value="180">3 minutes</option><option value="300">5 minutes</option></select>
+      </label>
+      <p id="dDesc"></p>
       <div id="modes"><button data-m="easy">Easy</button><button data-m="medium">Medium</button><button data-m="hard">Hard</button></div>
       <button id="resume" class="hide">Resume</button>
       <button id="menu">Main menu</button>
@@ -120,9 +155,9 @@
           <div class="grid3">
             <label>Difficulty<select id="fDiff"><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option></select></label>
             <label>Falling Speed<select id="fSpeed"><option value="slow">Slow</option><option value="normal">Normal</option><option value="fast">Fast</option><option value="insane">Insane</option></select></label>
-            <label>Game Mode<select id="fMode"><option value="endless">Endless</option><option value="timed">Time Attack (60s)</option></select></label>
+            <label>Word Quantity<select id="fDens"><option value="normal">Normal</option><option value="high">High</option><option value="extreme">Extreme</option></select></label>
           </div>
-          <p class="hint">Difficulty and Game Mode apply when a new game starts. Speed applies right away.</p>
+          <p class="hint">Difficulty applies when a new game starts. Game mode and time limit are chosen on the start screen. Speed and Word Quantity (how many words or code lines appear) apply right away for falling words, and from the next round in Code Mode.</p>
         </section>
         <section class="sec" id="s-a"><h3>&#127912; Appearance</h3>
           <div class="grid3">
@@ -151,6 +186,6 @@
     </div>
   </div>
 </div>
-<script src="game.js?v=5"></script>
+<script src="game.js?v=11"></script>
 </body>
 </html>
