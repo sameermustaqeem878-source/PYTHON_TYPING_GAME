@@ -1,0 +1,8 @@
+{
+  "name": "python-typing-game",
+  "version": "1.0.0",
+  "description": "Falling-words typing game with Python-related words",
+  "scripts": {
+    "start": "npx --yes http-server . -p 3000 -c-1 -o"
+  }
+}
