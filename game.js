@@ -108,8 +108,20 @@ const field=$('field'),inp=$('inp'),snake=$('snake');
 let mode='easy',words=[],running=false,paused=false,last=0,elapsed=0,spawnT=0,score=0,lives=3,best=0,hits=0,bad=0,streak=0;
 
 // ----- settings + audio -----
-const DEF={difficulty:'easy',speed:'normal',gmode:'classic',tlimit:60,density:'normal',ver:3,theme:'dark',accent:'#3b8eea',bg:true,music:70,sfx:80};
+const DEF={difficulty:'easy',speed:'normal',gmode:'classic',tlimit:60,density:'normal',ver:3,skin:'night',snake:'blue',keys:true,clickStyle:'mech',theme:'dark',accent:'#3b8eea',bg:true,music:70,sfx:80};
 const SPEEDS={slow:.7,normal:1,fast:1.35,insane:1.7};
+const SKINS=[
+  {id:'night',n:'Night City',a:'#3b8eea',d:'The classic city after dark'},
+  {id:'day',n:'Daylight',a:'#3b8eea',d:'Bright and clean light theme'},
+  {id:'neon',n:'Neon Nights',a:'#ff4fa3',d:'Purple sky, pink glow'},
+  {id:'matrix',n:'Matrix',a:'#2ecc71',d:'Green code rain vibes'},
+  {id:'sunset',n:'Sunset',a:'#ffc83d',d:'Warm evening skyline'},
+  {id:'ocean',n:'Deep Ocean',a:'#18c0ff',d:'Cool blue depths'}
+];
+const SNAKES=[
+  {id:'blue',n:'Blue',f:''},{id:'green',n:'Green',f:'hue-rotate(-95deg)'},{id:'purple',n:'Purple',f:'hue-rotate(65deg)'},
+  {id:'red',n:'Red',f:'hue-rotate(150deg)'},{id:'gold',n:'Gold',f:'hue-rotate(-155deg) saturate(1.3)'}
+];
 const DENS={normal:{i:1,b:1,cap:10,s:1,n:1},high:{i:.6,b:2,cap:16,s:.9,n:2},extreme:{i:.33,b:3,cap:30,s:.8,n:4}};
 const D=()=>DENS[S.density]||DENS.normal;
 let S={...DEF},W={...DEF},timeLeft=60,wasRunning=false;
@@ -118,6 +130,9 @@ Object.assign(S,saved);
 if(saved.ver!==3){S.density='normal';S.ver=3}
 if(!CFG[S.difficulty])S.difficulty='easy';
 if(!DENS[S.density])S.density='normal';
+if(!['mech','soft','type'].includes(S.clickStyle))S.clickStyle='mech';
+if(!SKINS.some(k=>k.id===S.skin))S.skin='night';
+if(!SNAKES.some(k=>k.id===S.snake))S.snake='blue';
 if(S.gmode==='endless')S.gmode='classic';if(S.gmode==='timed')S.gmode='time';
 if(!['classic','time','code'].includes(S.gmode))S.gmode='classic';
 if(!(+S.tlimit>0))S.tlimit=60;
@@ -132,6 +147,8 @@ function applyLook(o){
   document.documentElement.dataset.theme=o.theme;
   document.documentElement.style.setProperty('--blue',o.accent);
   document.body.classList.toggle('nobg',!o.bg);
+  document.documentElement.dataset.skin=o.skin==='day'?'night':o.skin;
+  $('snake').style.filter=(SNAKES.find(k=>k.id===o.snake)||SNAKES[0]).f;
 }
 let AC=null;
 function ac(){try{if(!AC)AC=new(window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume()}catch(e){}return AC}
@@ -148,6 +165,30 @@ const sfx={
   over(){[400,320,250,180].forEach((f,i)=>tone(f,.25,'triangle',.18*S.sfx/100,i*.18))}
 };
 sfx.tick=()=>tone(880,.03,'square',.035*S.sfx/100);
+let NB=null;
+function noiseBuf(){
+  const a=ac();if(!a)return null;
+  if(!NB){NB=a.createBuffer(1,Math.floor(a.sampleRate*.1),a.sampleRate);const d=NB.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1}
+  return NB;
+}
+// keyboard click: a short noise burst (the "tick") plus a low body thump
+function keyClick(kind){
+  const a=ac(),v=S.sfx/100,nb=a&&noiseBuf();
+  if(!a||!nb||v<=0)return;
+  const st=S.clickStyle,big=kind==='space'||kind==='enter'||kind==='back',t=a.currentTime;
+  const src=a.createBufferSource();src.buffer=nb;src.playbackRate.value=.9+Math.random()*.25;
+  const f=a.createBiquadFilter();f.type=st==='soft'?'lowpass':'highpass';f.frequency.value=st==='soft'?1800:st==='type'?3500:2200;
+  const g=a.createGain();
+  g.gain.setValueAtTime((st==='soft'?.2:.32)*v*(big?1.25:1),t);
+  g.gain.exponentialRampToValueAtTime(.001,t+(st==='type'?.05:.03));
+  src.connect(f);f.connect(g);g.connect(a.destination);src.start(t);src.stop(t+.06);
+  const o=a.createOscillator(),g2=a.createGain();
+  o.type=st==='type'?'square':'sine';
+  o.frequency.setValueAtTime(st==='type'?1300:big?130:180+Math.random()*40,t);
+  if(st!=='type')o.frequency.exponentialRampToValueAtTime(70,t+.05);
+  g2.gain.setValueAtTime((st==='type'?.05:.22)*v,t);g2.gain.exponentialRampToValueAtTime(.001,t+.06);
+  o.connect(g2);g2.connect(a.destination);o.start(t);o.stop(t+.07);
+}
 const MEL=[440,0,523,0,659,523,440,0,392,0,494,0,587,494,392,0,349,0,440,0,523,440,349,0,392,0,494,587,659,0,587,0];
 let mi=0,mt=null;
 function musicStop(){clearInterval(mt);mt=null}
@@ -157,7 +198,7 @@ function musicStart(){
 }
 const $s=$('set');
 function sync(){
-  $('fDiff').value=W.difficulty;$('fSpeed').value=W.speed;$('fDens').value=W.density;$('fTheme').value=W.theme;
+  $('fDiff').value=W.difficulty;$('fSpeed').value=W.speed;$('fKeys').checked=W.keys;$('fStyle').value=W.clickStyle;$('fDens').value=W.density;$('fTheme').value=W.theme;
   $('fBg').checked=W.bg;$('fMusic').value=W.music;$('fSfx').value=W.sfx;
   document.querySelectorAll('.sw').forEach(b=>b.classList.toggle('on',b.dataset.c===W.accent));
   ['Music','Sfx'].forEach(k=>{const r=$('f'+k);r.style.setProperty('--p',r.value+'%');$('v'+k).textContent=r.value+'%'});
@@ -174,7 +215,16 @@ function closeModal(cancel){
   if(wasRunning){paused=false;inp.focus()}
   wasRunning=false;
 }
-[['fDiff','difficulty'],['fSpeed','speed'],['fDens','density'],['fTheme','theme']].forEach(([id,k])=>$(id).onchange=e=>{W[k]=e.target.value;applyLook(W)});
+[['fDiff','difficulty'],['fSpeed','speed'],['fStyle','clickStyle'],['fDens','density'],['fTheme','theme']].forEach(([id,k])=>$(id).onchange=e=>{W[k]=e.target.value;applyLook(W)});
+inp.addEventListener('keydown',e=>{
+  if(!S.keys||!running||paused||e.ctrlKey||e.metaKey||e.altKey)return;
+  const k=e.key;
+  if(k.length===1)keyClick(k===' '?'space':'key');
+  else if(k==='Enter')keyClick('enter');
+  else if(k==='Backspace')keyClick('back');
+});
+$('fKeys').onchange=e=>{W.keys=e.target.checked};
+$('fStyle').addEventListener('change',()=>{const t=S.clickStyle;S.clickStyle=W.clickStyle;keyClick('key');S.clickStyle=t});
 $('fBg').onchange=e=>{W.bg=e.target.checked;applyLook(W)};
 document.querySelectorAll('.sw').forEach(b=>b.onclick=()=>{W.accent=b.dataset.c;applyLook(W);sync()});
 ['Music','Sfx'].forEach(k=>$('f'+k).oninput=e=>{W[k.toLowerCase()]=+e.target.value;sync()});
@@ -205,6 +255,7 @@ const baseSpeed=()=>Math.min((40+elapsed*1.2)*CFG[mode].s*SPEEDS[S.speed]*D().s,
 const interval=()=>Math.max(.22,(2.3-elapsed*.017)*CFG[mode].i*D().i);
 
 function hud(){
+  if(streak>gMax)gMax=streak;
   $('score').textContent=score;$('time').textContent=timeTxt();
   const t=hits+bad;$('acc').textContent=(t?Math.round(hits/t*100):100)+'%';
   $('streak').textContent=streak;$('wpm').textContent=Math.round(hits/5/Math.max(elapsed,5)*60);
@@ -306,6 +357,7 @@ function showOv(t,p,canResume){
 }
 
 function start(m){
+  gMax=0;
   mode=m;S.difficulty=m;saveS();timeLeft=S.tlimit;$('timeLbl').textContent=S.gmode==='classic'?'Time':'Time Left';loadBest();$('mode').textContent=m[0].toUpperCase()+m.slice(1)+(S.gmode==='classic'?'':' · '+(S.gmode==='time'?'Time':'Code'));
   words.forEach(o=>o.el.remove());words=[];
   score=0;lives=3;elapsed=0;spawnT=1.2;hits=0;bad=0;streak=0;paused=false;running=true;
@@ -316,7 +368,10 @@ function start(m){
 function end(title){
   running=false;musicStop();sfx.over();
   if(score>best){best=score;$('best').textContent=best;try{localStorage.setItem(bestKey(),best)}catch(e){}}
+  const news=recordGame();
   showOv(title||'Game Over','Score '+score+'  |  '+(S.gmode==='code'?'WPM '+$('wpm').textContent+'  |  Accuracy '+$('acc').textContent:'Time '+Math.floor(elapsed)+'s')+'  |  Best '+best+'. Pick a mode and difficulty to play again.',false);
+  news.forEach((m,i)=>setTimeout(()=>toast(m),700+i*2100));
+  if(activeDaily&&!P.daily.done[activeDaily.id])setTimeout(()=>toast('Challenge not completed yet. Try again!'),700);
 }
 
 function openSettings(){openModal()}
@@ -353,7 +408,7 @@ function syncPick(){
 }
 document.querySelectorAll('#gm button').forEach(b=>b.onclick=()=>{S.gmode=b.dataset.g;saveS();syncPick()});
 $('fTime').onchange=e=>{S.tlimit=+e.target.value;saveS()};
-document.querySelectorAll('#modes button').forEach(b=>b.onclick=()=>start(b.dataset.m));
+document.querySelectorAll('#modes button').forEach(b=>b.onclick=()=>{forced=null;activeDaily=null;start(b.dataset.m)});
 
 
 // ----- code mode: type directly over the code -----
@@ -361,6 +416,7 @@ let prog=[],li=0,prevLen=0,progs=0,lastProg=-1,setSize=1;
 const edBody=$('edBody');
 const esc=s=>s.replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
 function loadProg(){
+  if(forced){setSize=1;prog=forced.map(l=>{const t=l.trimStart();return{ind:l.length-t.length,t}});li=0;prevLen=0;inp.value='';renderEd();return}
   const L=PROGLIST[mode];
   const idx=L.map((_,i)=>i).sort(()=>Math.random()-.5).slice(0,Math.min(D().n,L.length));
   setSize=idx.length;
@@ -397,7 +453,7 @@ function codeInput(){
   const t=prog[li].t;let v=inp.value;
   if(v.length>t.length){v=v.slice(0,t.length);inp.value=v}
   for(let i=prevLen;i<v.length;i++){
-    if(v[i]===t[i]){hits++;streak++;score+=10;sfx.tick()}
+    if(v[i]===t[i]){hits++;streak++;score+=10}
     else{bad++;streak=0;sfx.bad()}
   }
   prevLen=v.length;
@@ -429,11 +485,168 @@ function showIntro(){
 }
 function startFromIntro(){
   if(intro.classList.contains('out'))return;
-  intro.classList.add('out');
-  showOv('Choose Mode & Difficulty','Pick a mode, then a difficulty to start. Classic and Time Attack give you 3 lives.',false);
+  showNav();
 }
 $('iStart').onclick=startFromIntro;
 $('iSet').onclick=openModal;
-$('menu').onclick=showIntro;$('menuBtn').onclick=showIntro;$('pzMenu').onclick=showIntro;
+$('menu').onclick=showNav;$('menuBtn').onclick=showNav;$('pzMenu').onclick=showNav;
 addEventListener('keydown',e=>{if(e.key==='Enter'&&!intro.classList.contains('out')&&$s.classList.contains('hide'))startFromIntro()});
+
+
+// ===== profile: stats, leaderboard, achievements, daily challenges =====
+let gMax=0,activeDaily=null,forced=null;
+const PK='pyTyperProfile';
+const P0=()=>({games:0,hits:0,bad:0,secs:0,best:0,bestWpm:0,maxStreak:0,recent:[],board:[],gm:{classic:0,time:0,code:0},ach:{},daily:{streak:0,last:'',done:{},total:0},name:'Player'});
+let P=P0();
+try{Object.assign(P,JSON.parse(localStorage.getItem(PK)||'{}'))}catch(e){}
+['gm','daily'].forEach(k=>{P[k]=Object.assign(P0()[k],P[k])});
+const saveP=()=>{try{localStorage.setItem(PK,JSON.stringify(P))}catch(e){}};
+const escH=s=>String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+const GM2={classic:'Classic',time:'Time Attack',code:'Code Mode'};
+const fmtT=s=>s>=60?s/60+' min':s+' sec';
+const dateKey=(d=new Date())=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+
+const ACH=[
+  {id:'first',i:'🎮',n:'First Steps',d:'Finish your first game',t:c=>P.games>=1},
+  {id:'g10',i:'🔟',n:'Regular',d:'Play 10 games',t:c=>P.games>=10},
+  {id:'s500',i:'⭐',n:'Rising Star',d:'Score 500 in one game',t:c=>c.score>=500},
+  {id:'s1500',i:'🌟',n:'Superstar',d:'Score 1,500 in one game',t:c=>c.score>=1500},
+  {id:'s4000',i:'👑',n:'Typing King',d:'Score 4,000 in one game',t:c=>c.score>=4000},
+  {id:'st10',i:'🔥',n:'On Fire',d:'Reach a streak of 10',t:c=>c.streak>=10},
+  {id:'st30',i:'⚡',n:'Unstoppable',d:'Reach a streak of 30',t:c=>c.streak>=30},
+  {id:'w30',i:'⌨️',n:'Quick Fingers',d:'Reach 30 WPM',t:c=>c.wpm>=30},
+  {id:'w60',i:'🚀',n:'Speed Demon',d:'Reach 60 WPM',t:c=>c.wpm>=60},
+  {id:'perf',i:'🎯',n:'Perfectionist',d:'100% accuracy with 20+ hits',t:c=>c.acc===100&&c.hits>=20},
+  {id:'modes',i:'🧭',n:'Explorer',d:'Play Classic, Time Attack and Code Mode',t:c=>P.gm.classic>0&&P.gm.time>0&&P.gm.code>0},
+  {id:'hard',i:'💪',n:'Hardcore',d:'Score 300+ on Hard',t:c=>c.diff==='hard'&&c.score>=300},
+  {id:'code3',i:'🧑‍💻',n:'Code Master',d:'Finish 3 programs in one Code Mode game',t:c=>c.progs>=3},
+  {id:'daily',i:'📅',n:'Daily Doer',d:'Complete a daily challenge',t:c=>P.daily.total>=1},
+  {id:'hits500',i:'🏅',n:'Marathon',d:'Type 500 correct words or characters in total',t:c=>P.hits>=500}
+];
+const metricVal=(m,c)=>m==='score'?c.score:m==='streak'?c.streak:c.progs;
+
+function rng(seed){let s=seed>>>0;return()=>{s=(s+0x6D2B79F5)>>>0;let t=s;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}}
+function dailyList(){
+  const key=dateKey();let seed=0;for(const ch of key)seed=(seed*31+ch.charCodeAt(0))>>>0;
+  const r=rng(seed),pick=a=>a[Math.floor(r()*a.length)];
+  const d1=pick(['easy','medium','hard']),d2=pick(['easy','medium']),d3=pick(['easy','medium','hard']);
+  const t1=pick({easy:[300,400,500],medium:[400,600,800],hard:[500,700,900]}[d1]),t2=pick([10,15,20]),t3=pick([1,2]);
+  return [
+    {id:key+'-a',gm:'classic',diff:d1,tl:60,metric:'score',target:t1,text:'Score '+t1+'+ points in Classic'},
+    {id:key+'-b',gm:'time',diff:d2,tl:60,metric:'streak',target:t2,text:'Reach a streak of '+t2+' in Time Attack'},
+    {id:key+'-c',gm:'code',diff:d3,tl:90,metric:'progs',target:t3,text:'Finish '+t3+' program'+(t3>1?'s':'')+' in Code Mode'}
+  ];
+}
+function recordGame(){
+  const tot=hits+bad,acc=tot?Math.round(hits/tot*100):100,wpm=Math.round(hits/5/Math.max(elapsed,5)*60);
+  const c={score,streak:gMax,wpm,acc,hits,progs:S.gmode==='code'?progs:0,diff:mode,gm:S.gmode};
+  P.games++;P.hits+=hits;P.bad+=bad;P.secs+=Math.round(elapsed);
+  P.best=Math.max(P.best,score);P.bestWpm=Math.max(P.bestWpm,wpm);P.maxStreak=Math.max(P.maxStreak,gMax);
+  P.gm[S.gmode]=(P.gm[S.gmode]||0)+1;
+  P.recent.push(score);P.recent=P.recent.slice(-12);
+  if(score>0){P.board.push({n:P.name,s:score,gm:S.gmode,d:mode,w:wpm,a:acc,t:Date.now()});P.board.sort((a,b)=>b.s-a.s);P.board=P.board.slice(0,50)}
+  const news=[];
+  if(activeDaily&&!P.daily.done[activeDaily.id]&&metricVal(activeDaily.metric,c)>=activeDaily.target){
+    P.daily.done[activeDaily.id]=true;P.daily.total++;
+    const k=dateKey();
+    if(P.daily.last!==k){P.daily.streak=P.daily.last===dateKey(new Date(Date.now()-864e5))?P.daily.streak+1:1;P.daily.last=k}
+    news.push('✅ Daily challenge complete!');
+  }
+  ACH.forEach(a=>{if(!P.ach[a.id]&&a.t(c)){P.ach[a.id]=Date.now();news.push('Achievement: '+a.i+' '+a.n)}});
+  saveP();return news;
+}
+function toast(m){
+  const t=$('toast');t.textContent=m;t.classList.remove('hide','in');void t.offsetWidth;t.classList.add('in');
+  clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.add('hide'),2400);
+}
+
+// ===== navigation hub =====
+const LESSONS=[{"t": "Variables", "x": "A variable stores a value. Python works out the type for you.", "c": ["name = \"Sam\"", "age = 20", "print(name, age)"]}, {"t": "Strings", "x": "Strings are text. They come with handy methods like upper() and len().", "c": ["word = \"python\"", "print(word.upper())", "print(word[0])", "print(len(word))"]}, {"t": "Lists", "x": "A list holds many items in order. Use append to add and an index to read.", "c": ["fruits = [\"apple\", \"mango\"]", "fruits.append(\"kiwi\")", "print(fruits[0])", "print(len(fruits))"]}, {"t": "Dictionaries", "x": "A dictionary maps keys to values.", "c": ["user = {\"name\": \"Ali\", \"age\": 21}", "user[\"city\"] = \"Karachi\"", "for key, value in user.items():", "    print(key, value)"]}, {"t": "If / else", "x": "Make decisions with if, elif and else. Indentation matters!", "c": ["score = 72", "if score >= 90:", "    print(\"A\")", "elif score >= 70:", "    print(\"B\")", "else:", "    print(\"Try again\")"]}, {"t": "Loops", "x": "for loops repeat over a sequence. while loops repeat until a condition fails.", "c": ["for i in range(3):", "    print(i)", "count = 0", "while count < 3:", "    count += 1"]}, {"t": "Functions", "x": "Functions group code you can reuse. return sends a value back.", "c": ["def add(a, b):", "    return a + b", "print(add(2, 3))"]}, {"t": "Classes", "x": "A class is a blueprint for objects with data and behaviour.", "c": ["class Dog:", "    def __init__(self, name):", "        self.name = name", "    def bark(self):", "        return f\"{self.name} says woof\"", "print(Dog(\"Rex\").bark())"]}, {"t": "Errors", "x": "try and except let your program handle problems without crashing.", "c": ["try:", "    num = int(\"abc\")", "except ValueError:", "    print(\"Not a number\")", "finally:", "    print(\"Done\")"]}, {"t": "Comprehensions", "x": "Build lists in one short line.", "c": ["squares = [n * n for n in range(5)]", "evens = [n for n in squares if n % 2 == 0]", "print(squares, evens)"]}];
+const nav=$('nav'),sub=$('sub');
+(function(){
+  let k='<g transform="rotate(-9 110 62)"><rect x="6" y="14" width="208" height="86" rx="12" fill="#0f3a8a" stroke="#2f7bff" stroke-width="3"/>';
+  for(let r=0;r<4;r++)for(let c=0;c<12;c++){if(r===3&&c>2&&c<9)continue;k+='<rect x="'+(16+c*16)+'" y="'+(22+r*17)+'" width="13" height="13" rx="3" fill="#0b1b4d" stroke="#3a86ff" stroke-width="1.2"/>'}
+  k+='<rect x="64" y="73" width="86" height="13" rx="3" fill="#0b1b4d" stroke="#3a86ff" stroke-width="1.2"/></g><path d="M214 30h24M218 44h28M212 58h22" stroke="#ffc83d" stroke-width="4" stroke-linecap="round"/>';
+  $('nkb').innerHTML=k;
+})();
+function showNav(){
+  running=false;paused=false;musicStop();resetPauseUI();
+  words.forEach(o=>o.el.remove());words=[];inp.value='';
+  forced=null;activeDaily=null;
+  $('ov').classList.add('hide');sub.classList.add('hide');intro.classList.add('out');
+  nav.classList.remove('hide','go');void nav.offsetWidth;nav.classList.add('go');
+}
+const hideSub=()=>sub.classList.add('hide');
+const SUBT={lb:'🏆 Leaderboard',learn:'🎓 Learn Python',daily:'🎯 Daily Challenges',ach:'🏅 Achievements',stats:'📊 Statistics',skins:'🎨 Themes & Skins'};
+function openSub(n){
+  $('subT').textContent=SUBT[n];
+  ({lb:renderLB,learn:renderLearn,daily:renderDaily,ach:renderAch,stats:renderStats,skins:renderSkins})[n]();
+  sub.classList.remove('hide');$('subB').scrollTop=0;
+}
+document.querySelectorAll('.nitem').forEach(b=>b.onclick=()=>{
+  const n=b.dataset.n;
+  if(n==='play'){nav.classList.add('hide');showOv('Choose Mode & Difficulty','Pick a mode, then a difficulty to start. Classic and Time Attack give you 3 lives.',false)}
+  else if(n==='settings')openModal();
+  else openSub(n);
+});
+$('subBack').onclick=hideSub;
+addEventListener('keydown',e=>{if(e.key==='Escape'&&!e.defaultPrevented&&!sub.classList.contains('hide'))hideSub()});
+
+let lbF='all';
+function renderLB(){
+  const rows=P.board.filter(e=>lbF==='all'||e.gm===lbF).slice(0,10);
+  $('subB').innerHTML='<div class="row2"><label>Your name <input id="pname" maxlength="14" value="'+escH(P.name)+'"></label><div class="tabs">'
+    +['all','classic','time','code'].map(f=>'<button class="tab'+(lbF===f?' on':'')+'" data-f="'+f+'">'+({all:'All'}[f]||GM2[f])+'</button>').join('')+'</div></div>'
+    +(rows.length?'<table class="tbl"><tr><th>#</th><th>Player</th><th>Score</th><th>Mode</th><th>WPM</th><th>Acc</th></tr>'
+      +rows.map((e,i)=>'<tr><td>'+(i<3?['🥇','🥈','🥉'][i]:i+1)+'</td><td>'+escH(e.n)+'</td><td><b>'+e.s+'</b></td><td>'+GM2[e.gm]+' · '+e.d+'</td><td>'+e.w+'</td><td>'+e.a+'%</td></tr>').join('')+'</table>'
+      :'<p class="mute">No scores yet. Play a game to get on the board!</p>')
+    +'<p class="mute">Scores are saved on this device only.</p>';
+  $('pname').onchange=e=>{P.name=(e.target.value.trim()||'Player').slice(0,14);saveP()};
+  document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{lbF=b.dataset.f;renderLB()});
+}
+function renderLearn(){
+  $('subB').innerHTML='<p class="lead">Read a short lesson, then type the code yourself. Practice runs in Code Mode for 2 minutes.</p><div class="cards wide">'
+    +LESSONS.map((l,i)=>'<div class="cd"><h3>'+(i+1)+'. '+escH(l.t)+'</h3><p class="mute">'+escH(l.x)+'</p><pre class="mono codebox">'+escH(l.c.join('\n'))+'</pre><button class="pb" data-i="'+i+'">Type it ▶</button></div>').join('')+'</div>';
+  document.querySelectorAll('#subB .pb').forEach(b=>b.onclick=()=>{
+    S.gmode='code';S.tlimit=120;forced=LESSONS[+b.dataset.i].c;activeDaily=null;
+    hideSub();nav.classList.add('hide');start(S.difficulty);
+  });
+}
+function renderDaily(){
+  const list=dailyList(),yk=dateKey(new Date(Date.now()-864e5));
+  const streak=(P.daily.last===dateKey()||P.daily.last===yk)?P.daily.streak:0;
+  $('subB').innerHTML='<p class="lead">New challenges every day. Complete them to build your streak.</p><div class="cards"><div class="cd stat"><small>Daily streak</small><b>🔥 '+streak+'</b></div><div class="cd stat"><small>Done today</small><b>'+list.filter(c=>P.daily.done[c.id]).length+' / 3</b></div></div><div class="list">'
+    +list.map((c,i)=>'<div class="cd ch'+(P.daily.done[c.id]?' done':'')+'"><div><b>'+escH(c.text)+'</b><small>'+GM2[c.gm]+(c.gm==='classic'?'':' · '+fmtT(c.tl))+' · '+c.diff+'</small></div>'
+      +(P.daily.done[c.id]?'<span class="okk">✔ Done</span>':'<button class="pb" data-i="'+i+'">Play ▶</button>')+'</div>').join('')+'</div>';
+  document.querySelectorAll('#subB .pb').forEach(b=>b.onclick=()=>{
+    const c=dailyList()[+b.dataset.i];
+    S.gmode=c.gm;S.tlimit=c.tl;forced=null;activeDaily=c;hideSub();nav.classList.add('hide');start(c.diff);
+  });
+}
+function renderAch(){
+  const n=ACH.filter(a=>P.ach[a.id]).length;
+  $('subB').innerHTML='<p class="lead">'+n+' / '+ACH.length+' unlocked</p><div class="cards">'
+    +ACH.map(a=>'<div class="cd badge'+(P.ach[a.id]?'':' lock')+'"><span class="bi">'+a.i+'</span><b>'+a.n+'</b><small>'+a.d+'</small>'+(P.ach[a.id]?'<span class="okk">Unlocked</span>':'<span class="mute">Locked</span>')+'</div>').join('')+'</div>';
+}
+function renderStats(){
+  const tot=P.hits+P.bad,acc=tot?Math.round(P.hits/tot*100):100,mx=Math.max(1,...P.recent),mm=Math.max(1,...Object.values(P.gm));
+  const cards=[['Games played',P.games],['Best score',P.best],['Best WPM',P.bestWpm],['Accuracy',acc+'%'],['Longest streak',P.maxStreak],['Time played',Math.floor(P.secs/60)+'m '+P.secs%60+'s'],['Achievements',ACH.filter(a=>P.ach[a.id]).length+' / '+ACH.length]];
+  $('subB').innerHTML='<div class="cards">'+cards.map(x=>'<div class="cd stat"><small>'+x[0]+'</small><b>'+x[1]+'</b></div>').join('')+'</div>'
+    +'<h3 class="h3">Games by mode</h3><div class="hb2">'+Object.keys(GM2).map(k=>'<div class="hrow"><span>'+GM2[k]+'</span><i style="width:'+(P.gm[k]/mm*100)+'%"></i><em>'+P.gm[k]+'</em></div>').join('')+'</div>'
+    +'<h3 class="h3">Last scores</h3>'+(P.recent.length?'<div class="bars">'+P.recent.map(s=>'<div class="bar" style="height:'+Math.max(6,s/mx*100)+'%"><span>'+s+'</span></div>').join('')+'</div>':'<p class="mute">Play a game to see your progress here.</p>')
+    +'<button id="rst" class="sb">Reset all progress</button>';
+  const r=$('rst');let armed=false;
+  r.onclick=()=>{if(!armed){armed=true;r.textContent='Click again to confirm';return}const nm=P.name;P=P0();P.name=nm;saveP();renderStats()};
+}
+function renderSkins(){
+  $('subB').innerHTML='<h3 class="h3">Themes</h3><div class="cards">'
+    +SKINS.map(k=>'<button class="cd pick'+(S.skin===k.id?' on':'')+'" data-k="'+k.id+'"><span class="pv pv-'+k.id+'"></span><b>'+k.n+'</b><small>'+k.d+'</small></button>').join('')+'</div>'
+    +'<h3 class="h3">Snake skins</h3><div class="cards">'
+    +SNAKES.map(k=>'<button class="cd pick'+(S.snake===k.id?' on':'')+'" data-s="'+k.id+'"><span class="pvs" style="filter:'+(k.f||'none')+'"></span><b>'+k.n+'</b></button>').join('')+'</div>';
+  document.querySelectorAll('#subB [data-k]').forEach(b=>b.onclick=()=>{
+    const k=SKINS.find(x=>x.id===b.dataset.k);
+    S.skin=k.id;S.theme=k.id==='day'?'light':'dark';S.accent=k.a;saveS();applyLook(S);renderSkins();
+  });
+  document.querySelectorAll('#subB [data-s]').forEach(b=>b.onclick=()=>{S.snake=b.dataset.s;saveS();applyLook(S);renderSkins()});
+}
 loadBest();hud();

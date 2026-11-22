@@ -3,10 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>PyTyper</title>
-<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<title>Python Typing Game</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Fredoka:wght@600;700&display=swap">
-<link rel="stylesheet" href="style.css?v=11">
+<link rel="stylesheet" href="style.css?v=13">
 <script>
 addEventListener('error',function(e){
   var t=e.target&&(e.target.src||e.target.href);
@@ -139,6 +138,31 @@ addEventListener('error',function(e){
   </div>
 </div>
 
+<div id="nav" class="hide go">
+  <div class="nhead">
+    <svg class="nlogo" viewBox="0 0 140 110" aria-hidden="true"><ellipse cx="70" cy="64" rx="64" ry="21" fill="none" stroke="#1e90ff" stroke-width="3.500" transform="rotate(-18 70 64)" opacity=".9"/><g transform="translate(34 8) scale(2.2)"><path fill="#3b8eea" d="M15.9 2C9 2 9.4 5 9.4 5v3.1H16V9H6.7S2 8.5 2 16c0 7.400 4.100 7.100 4.100 7.100h2.400v-3.400s-.1-4.100 4-4.100h6.600s3.800.1 3.800-3.700V5.800S23.500 2 15.900 2zm-3.600 2.100a1.200 1.200 0 1 1 0 2.400 1.200 1.200 0 0 1 0-2.400z"/><path fill="#ffc83d" d="M16.100 30c6.900 0 6.500-3 6.500-3v-3.100H16V23h9.300S30 23.500 30 16c0-7.400-4.100-7.100-4.100-7.100h-2.400v3.400s.1 4.100-4 4.100h-6.600s-3.800-.1-3.800 3.700v6.200S8.500 30 16.100 30zm3.600-2.100a1.200 1.200 0 1 1 0-2.400 1.200 1.200 0 0 1 0 2.400z"/></g></svg>
+    <h2 class="nword"><span>Py</span><em>Typer</em></h2>
+    <svg id="nkb" class="nkb" viewBox="0 0 250 120" aria-hidden="true"></svg>
+  </div>
+  <div class="ntag"><i></i><span>GAME NAVIGATION</span><i></i></div>
+  <div class="navbox">
+    <button class="nitem b" data-n="play" style="--d:.1s"><span class="ni" style="color:#18c0ff">&#9654;</span><span class="nl">Play Game</span><span class="nc">&#8250;</span></button>
+    <button class="nitem g" data-n="lb" style="--d:.15s"><span class="ni">&#127942;</span><span class="nl">Leaderboard</span><span class="nc">&#8250;</span></button>
+    <button class="nitem g" data-n="learn" style="--d:.2s"><span class="ni">&#127891;</span><span class="nl">Learn Python</span><span class="nc">&#8250;</span></button>
+    <button class="nitem b" data-n="daily" style="--d:.25s"><span class="ni">&#127919;</span><span class="nl">Daily Challenges</span><span class="nc">&#8250;</span></button>
+    <button class="nitem b" data-n="ach" style="--d:.3s"><span class="ni">&#127941;</span><span class="nl">Achievements</span><span class="nc">&#8250;</span></button>
+    <button class="nitem g" data-n="stats" style="--d:.35s"><span class="ni">&#128202;</span><span class="nl">Statistics</span><span class="nc">&#8250;</span></button>
+    <button class="nitem g" data-n="skins" style="--d:.4s"><span class="ni">&#127912;</span><span class="nl">Themes &amp; Skins</span><span class="nc">&#8250;</span></button>
+    <button class="nitem b" data-n="settings" style="--d:.45s"><span class="ni">&#9881;&#65039;</span><span class="nl">Settings</span><span class="nc">&#8250;</span></button>
+  </div>
+  <div class="nfoot"><i></i><span>TYPE &bull; LEARN &bull; ACHIEVE</span><i></i></div>
+</div>
+<div id="sub" class="hide">
+  <div class="shd"><button id="subBack">&#8249; Back</button><h2 id="subT"></h2></div>
+  <div class="sbod" id="subB"></div>
+</div>
+<div id="toast" class="hide" role="status"></div>
+
 <div id="set" class="hide" role="dialog" aria-modal="true" aria-labelledby="setT">
   <div class="sbox">
     <button id="sX" class="sx" aria-label="Close settings">&#10005;</button>
@@ -178,15 +202,19 @@ addEventListener('error',function(e){
             <label>Music Volume <b id="vMusic">70%</b><input type="range" id="fMusic" min="0" max="100"></label>
             <label>SFX Volume <b id="vSfx">80%</b><input type="range" id="fSfx" min="0" max="100"></label>
           </div>
+          <div class="grid2">
+            <div class="lab">Keyboard Click Sound<label class="tg"><input type="checkbox" id="fKeys"><span></span></label></div>
+            <label>Click Style<select id="fStyle"><option value="mech">Mechanical</option><option value="soft">Soft</option><option value="type">Typewriter</option></select></label>
+          </div>
         </section>
         <section class="sec" id="s-i"><h3>&#8505;&#65039; About</h3>
-          <p class="hint">Python Typing Game. Type each falling word and press Enter (or just finish typing it) before it touches the ground. Press Esc to open Settings and pause.</p>
+          <p class="hint">Python Typing Game. Type each falling word and press Enter (or just finish typing it) before it touches the ground. Press Esc to pause or resume.</p>
         </section>
       </div>
       <div class="sfoot"><button id="sReset" class="bo">&#8634; Reset to Default</button><button id="sSave" class="by">&#10004; Save Settings</button></div>
     </div>
   </div>
 </div>
-<script src="game.js?v=11"></script>
+<script src="game.js?v=13"></script>
 </body>
 </html>
