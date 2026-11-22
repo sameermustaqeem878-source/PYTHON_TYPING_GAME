@@ -3,9 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Python Typing Game</title>
+<title>PyTyper</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.ico" sizes="any">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Fredoka:wght@600;700&display=swap">
-<link rel="stylesheet" href="style.css?v=13">
+<link rel="stylesheet" href="style.css?v=17">
 <script>
 addEventListener('error',function(e){
   var t=e.target&&(e.target.src||e.target.href);
@@ -43,13 +45,7 @@ addEventListener('error',function(e){
     <div class="panel streak"><small style="color:var(--mute)">Streak</small><b id="streak">0</b><p id="msg">Keep going!</p></div>
   </div>
   <div id="field">
-    <svg id="snake" viewBox="0 0 18 13" aria-hidden="true">
-      <rect x="12" y="1" width="5" height="4" fill="#2d7fd8"/><rect x="14" y="2" width="1" height="1" fill="#fff"/><rect x="17" y="3" width="1" height="1" fill="#ff5d4d"/>
-      <rect x="12" y="5" width="3" height="4" fill="#2d7fd8"/><rect x="14" y="5" width="1" height="4" fill="#ffc83d"/>
-      <rect x="3" y="8" width="12" height="4" fill="#2d7fd8"/><rect x="4" y="11" width="10" height="1" fill="#ffc83d"/><rect x="14" y="9" width="1" height="3" fill="#ffc83d"/>
-      <rect x="1" y="10" width="3" height="2" fill="#2d7fd8"/><rect x="0" y="11" width="2" height="1" fill="#ffc83d"/>
-      <rect x="6" y="9" width="1" height="1" fill="#6fb8ff"/><rect x="9" y="9" width="1" height="1" fill="#6fb8ff"/><rect x="12" y="6" width="1" height="1" fill="#6fb8ff"/>
-    </svg>
+    <svg id="snake" viewBox="0 0 240 232" aria-hidden="true"></svg>
     <div id="editor" class="hide">
       <div id="edHead"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><span>main.py</span><em>Programs: <b id="edCount">0</b></em></div>
       <div id="edBody" class="mono" aria-live="off"></div>
@@ -215,6 +211,6 @@ addEventListener('error',function(e){
     </div>
   </div>
 </div>
-<script src="game.js?v=13"></script>
+<script src="game.js?v=17"></script>
 </body>
 </html>
